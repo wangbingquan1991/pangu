@@ -1,0 +1,12 @@
+# 换行一律 LF：本机 macOS，远端 NAS 是 Linux，钩子脚本尤其吃不得 CRLF。
+* text=auto eol=lf
+
+*.go  text eol=lf
+*.sh  text eol=lf
+*.md  text eol=lf
+钩/pre-commit text eol=lf
+
+# 二进制不参与换行转换与 diff
+*.png binary
+*.jpg binary
+*.pdf binary
