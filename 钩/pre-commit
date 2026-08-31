@@ -1,0 +1,61 @@
+#!/bin/sh
+# 预提交之钩：格式化、静态检查、跑测试、查同字异码。
+#
+# 启用之法（仓库根执行一次即可）：
+#     git config core.hooksPath 钩
+#
+# 此钩之设，出于 `典/04-开天之图.md` §7 风险第七条（NFC 同字异码）
+# 与 `典/02-实现约束.md` 之位运算戒律——戒律靠人记不住，靠机器才稳。
+#
+# 注意：/bin/sh（dash/POSIX）不接受非 ASCII 变量名，故此脚本内变量一律用 ASCII。
+#      注释与输出用中文无妨。
+
+set -e
+
+export GOROOT="${GOROOT:-$HOME/.workbuddy/binaries/go/go}"
+export GOPATH="${GOPATH:-$HOME/.workbuddy/binaries/go/gopath}"
+export GOCACHE="${GOCACHE:-$HOME/.workbuddy/binaries/go/gocache}"
+export PATH="$GOROOT/bin:$PATH"
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# 一、凡 .go 文件须经 gofmt
+WEI="$(gofmt -l . 2>/dev/null || true)"
+if [ -n "$WEI" ]; then
+	echo "⛔ 以下文件未经 gofmt，请先运行 gofmt -w . ："
+	echo "$WEI"
+	exit 1
+fi
+
+# 二、静态检查
+echo "· 静态检查……"
+go vet ./... || { echo "⛔ go vet 未过"; exit 1; }
+
+# 三、全量测试
+echo "· 跑测试……"
+go test ./... || { echo "⛔ 测试未过"; exit 1; }
+
+# 四、查同字异码：暂存之文件名若非 NFC 规范化，则阻之。
+#    macOS 的文件系统往往给出 NFD，与 Linux/NAS 上的 NFC 同一字而两码，
+#    入库之后极难察觉，故在此拦下。
+if command -v python3 >/dev/null 2>&1; then
+	BAD=$(git diff --cached --name-only --diff-filter=ACM -z | python3 -c '
+import sys, unicodedata
+bad = []
+for raw in sys.stdin.buffer.read().split(b"\0"):
+    if not raw:
+        continue
+    s = raw.decode("utf-8", "surrogateescape")
+    if unicodedata.normalize("NFC", s) != s:
+        bad.append(s)
+print("\n".join(bad))
+')
+	if [ -n "$BAD" ]; then
+		echo "⛔ 以下文件名非 NFC 规范化（同字异码之患）："
+		echo "$BAD"
+		exit 1
+	fi
+fi
+
+echo "✓ 预提交之钩通过"
