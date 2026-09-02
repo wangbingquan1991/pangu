@@ -181,6 +181,14 @@ try_mut "十四：标签查在剥号之前" \
 try_mut "十五：反汇之文 另起炉灶" \
 	's/\t诸 := 反汇\(诸令\)\n\tif len\(诸\) == 0 \{\n\t\treturn ""\n\t\}\n\treturn strings\.Join\(诸, "\\n"\) \+ "\\n"/\tvar b strings.Builder\n\tfor _, 令 := range 诸令 {\n\t\tb.WriteString(令之辞(令))\n\t\tb.WriteString("\\n")\n\t}\n\treturn b.String()/'
 
+# 十六、丙型之址为零者不书（旧病复发）
+#
+# 停机 之址无义，书「停机 0」或「停机」，回译皆得同一字——
+# 故**往返之验对它瞎**，Test往返穷举 跑七百万字也杀不着它。
+# 此变异专为 Test规范式之全 而立：往返验不到的，须另立一验。
+try_mut "十六：丙型之址为零者不书" \
+	's/\tcase 丙型:\n\t\treturn fmt\.Sprintf\("%s %d", 名, 取址\(令\)\)/\tcase 丙型:\n\t\tif 址 := 取址(令); 址 != 0 || (码 != 停机 && 码 != 叩) {\n\t\t\treturn fmt.Sprintf("%s %d", 名, 址)\n\t\t}\n\t\treturn 名/'
+
 print -r -- ""
 
 # ---- 二、还原之检（收工） ----
